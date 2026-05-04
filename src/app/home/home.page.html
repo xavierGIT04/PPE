@@ -1,0 +1,107 @@
+<ion-header>
+  <ion-toolbar style="--background: #1a1a2e; --color: #e2e8f0;">
+    <ion-buttons slot="start">
+      <ion-back-button></ion-back-button>
+    </ion-buttons>
+    <ion-title>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <ion-icon name="layers-outline" style="color:#63b3ed"></ion-icon>
+        <div>
+          <div style="font-size:15px; font-weight:500;">Radiologie IA</div>
+          <div style="font-size:11px; opacity:0.6;">Détection pneumonie — modèle ViT</div>
+        </div>
+      </div>
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content  style="--background: var(--ion-color-light)">
+
+  <div class="web-container">
+    <!-- Zone upload -->
+    @if (!result) {
+      <ion-card style="border-radius: 16px; margin-bottom: 16px;">
+
+        <!-- Drop zone -->
+        <div class="upload-zone" (click)="fileInput.click()">
+          <div class="upload-icon">
+            <ion-icon name="cloud-upload-outline" style="font-size:28px; color:#3182ce"></ion-icon>
+          </div>
+          <p>Charger le scan du patient</p>
+          <span>JPEG, PNG, DICOM · max 20 MB</span>
+          <input #fileInput type="file" hidden (change)="onFileChange($event)" accept="image/*" />
+        </div>
+
+        <!-- Fichier sélectionné -->
+        @if (selectedFile) {
+          <div class="file-chip">
+            <ion-icon name="document-outline"></ion-icon>
+            <span class="name">{{ selectedFile.name }}</span>
+            <span class="size">{{ (selectedFile.size / 1024 / 1024).toFixed(1) }} MB</span>
+            <ion-icon name="close-outline" (click)="selectedFile = null" style="cursor:pointer"></ion-icon>
+          </div>
+        }
+
+        <ion-button expand="block" class="ion-margin" style="--border-radius: 12px; --background: #1a1a2e;"
+                    [disabled]="!selectedFile || isLoading" (click)="analyze()">
+          @if (isLoading) {
+            <ion-spinner name="crescent" style="margin-right:8px"></ion-spinner>
+            Analyse en cours...
+          } @else {
+            Analyser la radio
+          }
+        </ion-button>
+      </ion-card>
+    }
+
+    <!-- Résultats -->
+    @if (result) {
+      <ion-card style="border-radius: 16px;">
+        <ion-card-header>
+          <ion-card-title style="font-size:16px;">Analyse terminée</ion-card-title>
+          <ion-card-subtitle>Probabilités calculées par le modèle ViT</ion-card-subtitle>
+        </ion-card-header>
+
+        <!-- Badge diagnostic -->
+        <div style="padding: 0 16px 8px; display:flex; align-items:center; gap:10px;">
+          <ion-badge [color]="result.diagnostic === 'PNEUMONIA' ? 'danger' : 'success'"
+                     style="border-radius:20px; padding: 6px 14px; font-size:13px;">
+            {{ result.diagnostic === 'PNEUMONIA' ? 'Pneumonie détectée' : 'Patient sain' }}
+          </ion-badge>
+          <span style="font-size:13px; color: var(--ion-color-medium)">
+          Confiance : {{ result.confiance }}%
+        </span>
+        </div>
+
+        <ion-card-content>
+          <!-- Barre Sain -->
+          <div class="score-row">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span style="font-size:13px; color:var(--ion-color-medium)">Sain (normal)</span>
+              <span style="font-size:13px; font-weight:500;">{{ normalScore.toFixed(2) }}%</span>
+            </div>
+            <ion-progress-bar color="success" [value]="normalScore / 100"></ion-progress-bar>
+          </div>
+
+          <!-- Barre Pneumonie -->
+          <div class="score-row" style="margin-top:16px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span style="font-size:13px; color:var(--ion-color-medium)">Pneumonie</span>
+              <span style="font-size:13px; font-weight:500;">{{ pneumoniaScore.toFixed(2) }}%</span>
+            </div>
+            <ion-progress-bar color="danger" [value]="pneumoniaScore / 100"></ion-progress-bar>
+          </div>
+        </ion-card-content>
+
+        <ion-item lines="none" style="margin-top:8px;">
+          <ion-button fill="outline" expand="block" (click)="reset()" style="width:100%; --border-radius:12px;">
+            <ion-icon name="add-outline" slot="start"></ion-icon>
+            Nouvelle analyse
+          </ion-button>
+        </ion-item>
+      </ion-card>
+    }
+
+  </div>
+
+</ion-content>

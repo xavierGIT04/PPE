@@ -1,0 +1,133 @@
+.upload-zone {
+  border: 1.5px dashed var(--ion-color-medium);
+  border-radius: 12px;
+  margin: 16px;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+
+  &:active {
+    background: var(--ion-color-light);
+    border-color: var(--ion-color-primary);
+  }
+
+  .upload-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: rgba(49, 130, 206, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+  }
+
+  p {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ion-color-dark);
+  }
+
+  span {
+    font-size: 12px;
+    color: var(--ion-color-medium);
+  }
+}
+
+.file-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--ion-color-light);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 0 16px 12px;
+
+  ion-icon {
+    font-size: 18px;
+    color: var(--ion-color-medium);
+  }
+
+  .name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ion-color-dark);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .size {
+    font-size: 12px;
+    color: var(--ion-color-medium);
+    white-space: nowrap;
+  }
+}
+
+.score-row {
+  ion-progress-bar {
+    height: 8px;
+    border-radius: 999px;
+  }
+}
+
+ion-content {
+  --background: #f8fafc;
+}
+
+.web-container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 0 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 24px 0;
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ion-color-medium);
+  }
+
+  .step-dot {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+
+    &.active { background: #0f172a; color: #e2e8f0; }
+    &.done   { background: #c6f6d5; color: #276749; }
+    &.idle   { background: var(--ion-color-light); color: var(--ion-color-medium); }
+  }
+
+  .step-line {
+    flex: 1;
+    height: 0.5px;
+    background: var(--ion-color-light-shade);
+  }
+}
+
+.analyze-btn {
+  margin: 20px 28px 24px;
+  width: calc(100% - 56px);
+  padding: 16px; // 👈 bouton plus grand
+  font-size: 15px;
+}

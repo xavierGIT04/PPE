@@ -1,3 +1,4 @@
+<!-- home.page.html — Tableau de Bord Clinique (fusionné) -->
 <ion-header>
   <ion-toolbar style="--background: #1a1a2e; --color: #e2e8f0;">
     <ion-buttons slot="start">
@@ -15,14 +16,16 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content  style="--background: var(--ion-color-light)">
-
+<ion-content style="--background: var(--ion-color-light)">
   <div class="web-container">
-    <!-- Zone upload -->
-    @if (!result) {
+
+    <!-- ══════════════════════════════════════
+         ① ÉTAT INITIAL — Zone d'upload
+    ══════════════════════════════════════ -->
+    @if (!loading && !response) {
       <ion-card style="border-radius: 16px; margin-bottom: 16px;">
 
-        <!-- Drop zone -->
+        <!-- Drop zone cliquable -->
         <div class="upload-zone" (click)="fileInput.click()">
           <div class="upload-icon">
             <ion-icon name="cloud-upload-outline" style="font-size:28px; color:#3182ce"></ion-icon>
@@ -32,7 +35,7 @@
           <input #fileInput type="file" hidden (change)="onFileChange($event)" accept="image/*" />
         </div>
 
-        <!-- Fichier sélectionné -->
+        <!-- Aperçu du fichier sélectionné -->
         @if (selectedFile) {
           <div class="file-chip">
             <ion-icon name="document-outline"></ion-icon>
@@ -42,66 +45,196 @@
           </div>
         }
 
-        <ion-button expand="block" class="ion-margin" style="--border-radius: 12px; --background: #1a1a2e;"
-                    [disabled]="!selectedFile || isLoading" (click)="analyze()">
-          @if (isLoading) {
-            <ion-spinner name="crescent" style="margin-right:8px"></ion-spinner>
-            Analyse en cours...
-          } @else {
-            Analyser la radio
-          }
+        <!-- Bouton d'analyse -->
+        <ion-button
+          expand="block"
+          class="ion-margin"
+          style="--border-radius: 12px; --background: #1a1a2e;"
+          [disabled]="!selectedFile"
+          (click)="analyze(selectedFile!)">
+          Analyser la radio
         </ion-button>
+
+        <!-- Message d'erreur éventuel -->
+        @if (error) {
+          <ion-card color="danger" style="margin: 0 16px 16px;">
+            <ion-card-content>{{ error }}</ion-card-content>
+          </ion-card>
+        }
+
       </ion-card>
     }
 
-    <!-- Résultats -->
-    @if (result) {
-      <ion-card style="border-radius: 16px;">
-        <ion-card-header>
-          <ion-card-title style="font-size:16px;">Analyse terminée</ion-card-title>
-          <ion-card-subtitle>Probabilités calculées par le modèle ViT</ion-card-subtitle>
-        </ion-card-header>
 
-        <!-- Badge diagnostic -->
-        <div style="padding: 0 16px 8px; display:flex; align-items:center; gap:10px;">
-          <ion-badge [color]="result.diagnostic === 'PNEUMONIA' ? 'danger' : 'success'"
-                     style="border-radius:20px; padding: 6px 14px; font-size:13px;">
-            {{ result.diagnostic === 'PNEUMONIA' ? 'Pneumonie détectée' : 'Patient sain' }}
-          </ion-badge>
-          <span style="font-size:13px; color: var(--ion-color-medium)">
-          Confiance : {{ result.confiance }}%
-        </span>
-        </div>
+    <!-- ══════════════════════════════════════
+         ② ÉTAT CHARGEMENT — Spinner centré
+    ══════════════════════════════════════ -->
+    @if (loading) {
+      <div class="center-col">
+        <ion-spinner name="crescent" color="primary"></ion-spinner>
+        <p class="muted">Analyse en cours par le modèle ViT…</p>
+      </div>
+    }
 
-        <ion-card-content>
-          <!-- Barre Sain -->
-          <div class="score-row">
-            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-              <span style="font-size:13px; color:var(--ion-color-medium)">Sain (normal)</span>
-              <span style="font-size:13px; font-weight:500;">{{ normalScore.toFixed(2) }}%</span>
-            </div>
-            <ion-progress-bar color="success" [value]="normalScore / 100"></ion-progress-bar>
+
+    <!-- ══════════════════════════════════════
+         ③ ÉTAT RÉSULTAT — Tableau de bord
+    ══════════════════════════════════════ -->
+    @if (response && !loading) {
+      <ng-container>
+
+        <!-- ── Carte d'alerte principale (Success / Danger) ── -->
+        <ion-card class="alert-card" [class.alert-card--pneumo]="isPneumonia">
+
+          <!-- Icône + titre diagnostic -->
+          <div class="alert-header">
+            <ion-icon
+              [name]="isPneumonia ? 'warning' : 'shield-checkmark'"
+              [color]="alertColor"
+              class="alert-icon">
+            </ion-icon>
+            <h1 class="alert-title" [class.alert-title--danger]="isPneumonia">
+              {{ response.clinical.summary }}
+            </h1>
           </div>
 
-          <!-- Barre Pneumonie -->
-          <div class="score-row" style="margin-top:16px;">
-            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-              <span style="font-size:13px; color:var(--ion-color-medium)">Pneumonie</span>
-              <span style="font-size:13px; font-weight:500;">{{ pneumoniaScore.toFixed(2) }}%</span>
+          <!-- Jauge de confiance colorée -->
+          <div class="gauge-container">
+            <div class="gauge-labels">
+              <span class="muted small">Confiance du modèle</span>
+              <strong [style.color]="isPneumonia ? 'var(--ion-color-danger)' : 'var(--ion-color-success)'">
+                {{ confidenceLabel }}
+              </strong>
             </div>
-            <ion-progress-bar color="danger" [value]="pneumoniaScore / 100"></ion-progress-bar>
+            <ion-progress-bar
+              [value]="gaugePercent / 100"
+              [color]="alertColor"
+              class="gauge-bar">
+            </ion-progress-bar>
           </div>
-        </ion-card-content>
 
-        <ion-item lines="none" style="margin-top:8px;">
-          <ion-button fill="outline" expand="block" (click)="reset()" style="width:100%; --border-radius:12px;">
+          <!-- Message professionnel -->
+          <p class="professional-msg">{{ response.clinical.professional_message }}</p>
+
+        </ion-card>
+
+
+        <!-- ── Analyse d'attention — Zones activées ── -->
+        <ion-card>
+          <ion-card-header>
+            <ion-card-subtitle>Analyse de l'attention IA</ion-card-subtitle>
+            <ion-card-title>Zones pulmonaires analysées</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+
+            <p class="narrative">{{ response.clinical.attention_analysis.narrative }}</p>
+
+            @if (zones.length) {
+              <div class="zones-row">
+                @for (z of zones; track z.name) {
+                  <ion-chip [color]="z.intensity === 'élevée' ? 'danger' : 'warning'">
+                    <ion-icon name="location-outline"></ion-icon>
+                    <ion-label>{{ z.name }}</ion-label>
+                  </ion-chip>
+                }
+              </div>
+            }
+
+          </ion-card-content>
+        </ion-card>
+
+
+        <!-- ── Module Heatmap côte-à-côte ── -->
+        <ion-card>
+          <ion-card-header>
+            <div class="heatmap-header">
+              <div>
+                <ion-card-subtitle>Carte d'attention</ion-card-subtitle>
+                <ion-card-title>Vision du modèle</ion-card-title>
+              </div>
+              <!-- Bouton aide pédagogique -->
+              <ion-button fill="clear" size="small" (click)="showExplain = !showExplain">
+                <ion-icon slot="icon-only" name="information-circle-outline"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-card-header>
+
+          <!-- Panneau explicatif (masqué par défaut) -->
+          <div class="explain-panel" [class.explain-panel--open]="showExplain">
+            <div class="explain-inner">
+              <h3>Comment lire cette carte ?</h3>
+              <p>
+                Le modèle <strong>Vision Transformer (ViT)</strong> divise la radiographie
+                en 196 petites zones (patchs 16×16 px) et calcule, pour chacune,
+                un score d'importance via un mécanisme d'<em>attention</em>.
+              </p>
+              <div class="legend-row">
+                <span class="legend-dot legend-dot--red"></span>
+                <span><strong>Rouge / chaud</strong> — Zone fortement impliquée dans la décision</span>
+              </div>
+              <div class="legend-row">
+                <span class="legend-dot legend-dot--gray"></span>
+                <span><strong>Gris / neutre</strong> — Zone peu informative pour le modèle</span>
+              </div>
+              <div class="legend-row">
+                <span class="legend-dot legend-dot--blue"></span>
+                <span><strong>Bleu / froid</strong> — Zone considérée comme saine</span>
+              </div>
+              <p class="muted small">
+                L'image de gauche est la radiographie originale.
+                Celle de droite superpose la carte d'attention.
+                La légende de couleur est visible à droite du panneau.
+              </p>
+              <ion-note color="warning">
+                <ion-icon name="alert-circle-outline"></ion-icon>
+                Ce résultat est un outil d'aide au diagnostic.
+                Il ne remplace pas l'interprétation d'un radiologue.
+              </ion-note>
+            </div>
+          </div>
+
+          <ion-card-content>
+            <img [src]="heatmapSrc" alt="Carte d'attention radiologique" class="heatmap-img" loading="lazy">
+          </ion-card-content>
+        </ion-card>
+
+
+        <!-- ── Probabilités brutes (accordéon pliable) ── -->
+        <ion-accordion-group>
+          <ion-accordion value="raw">
+            <ion-item slot="header" color="light">
+              <ion-label>Probabilités brutes du modèle</ion-label>
+            </ion-item>
+            <div slot="content" class="raw-panel">
+              <div class="raw-row">
+                <span>NORMAL</span>
+                <ion-progress-bar [value]="response.raw.normal / 100" color="success"></ion-progress-bar>
+                <strong>{{ response.raw.normal.toFixed(1) }} %</strong>
+              </div>
+              <div class="raw-row">
+                <span>PNEUMONIE</span>
+                <ion-progress-bar [value]="response.raw.pneumonia / 100" color="danger"></ion-progress-bar>
+                <strong>{{ response.raw.pneumonia.toFixed(1) }} %</strong>
+              </div>
+            </div>
+          </ion-accordion>
+        </ion-accordion-group>
+
+
+        <!-- ── Bouton Nouvelle analyse ── -->
+        <ion-item lines="none" style="margin-top: 16px;">
+          <ion-button
+            fill="outline"
+            expand="block"
+            (click)="reset()"
+            style="width:100%; --border-radius:12px;">
             <ion-icon name="add-outline" slot="start"></ion-icon>
             Nouvelle analyse
           </ion-button>
         </ion-item>
-      </ion-card>
+
+      </ng-container>
     }
 
   </div>
-
 </ion-content>

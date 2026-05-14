@@ -1,86 +1,133 @@
-import {Component, inject} from '@angular/core';
-import { addIcons } from 'ionicons';
+// home.page.ts — Tableau de bord clinique (fusionné)
+import { Component, inject, OnInit } from '@angular/core';
+import { Router }                    from '@angular/router';
+import { PneumoniaResponse }         from '../model/pneumonia.model';
+import { Diagnostic }                from '../services/diagnostic';
 import {
-  cloudUploadOutline,
-  documentOutline,
-  closeOutline,
-  addOutline,
-  layersOutline
-} from 'ionicons/icons';
-
-import {
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
+  IonAccordion,
+  IonAccordionGroup,
+  IonBackButton,
+  IonBadge,
+  IonButton,
+  IonButtons,
   IonCard,
+  IonCardContent,
+  IonCardHeader,
+  IonCardSubtitle,
+  IonCardTitle,
+  IonChip,
+  IonContent,
+  IonHeader,
+  IonIcon,
   IonItem,
   IonLabel,
-  IonButton,
-  IonSpinner,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardSubtitle,
-  IonCardContent,
+  IonNote,
   IonProgressBar,
-  IonBadge,
-  IonIcon,
-  IonButtons, IonBackButton
+  IonSpinner,
+  IonTitle,
+  IonToolbar,
 } from '@ionic/angular/standalone';
-import {Diagnostic} from "../services/diagnostic";
 
 @Component({
   selector: 'app-home',
-  templateUrl: 'home.page.html',
-  styleUrls: ['home.page.scss'],
-  imports: [IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonItem, IonButton, IonSpinner, IonCardHeader, IonCardTitle, IonCardSubtitle, IonCardContent, IonProgressBar, IonBadge, IonIcon, IonButtons, IonBackButton],
+  templateUrl: './home.page.html',
+  styleUrls: ['./home.page.scss'],
+  imports: [
+    IonHeader,
+    IonToolbar,
+    IonButtons,
+    IonTitle,
+    IonBackButton,
+    IonContent,
+    IonSpinner,
+    IonCard,
+    IonCardContent,
+    IonCardHeader,
+    IonCardSubtitle,
+    IonCardTitle,
+    IonProgressBar,
+    IonLabel,
+    IonIcon,
+    IonChip,
+    IonButton,
+    IonNote,
+    IonAccordionGroup,
+    IonAccordion,
+    IonItem,
+  ],
 })
-export class HomePage {
+export class HomePage implements OnInit {
 
-  constructor() {
-    addIcons({
-      'cloud-upload-outline': cloudUploadOutline,
-      'document-outline': documentOutline,
-      'close-outline': closeOutline,
-      'add-outline': addOutline,
-      'layers-outline': layersOutline
-    });
-  }
-  private diagService =  inject(Diagnostic);
+  // ── État global ────────────────────────────────────────────────────────────
+  response:    PneumoniaResponse | null = null;
+  loading      = false;
+  error:       string | null = null;
+
+  // ── Upload ─────────────────────────────────────────────────────────────────
   selectedFile: File | null = null;
-  result: any = null;
-  isLoading = false;
 
-  // Variables pour la barre de progression
-  normalScore = 0;
-  pneumoniaScore = 0;
+  // ── UI toggles ─────────────────────────────────────────────────────────────
+  showExplain = false;   // panneau pédagogique "Comment lire cette carte ?"
 
+  // ── Services ───────────────────────────────────────────────────────────────
+  private svc    = inject(Diagnostic);
+  private router = inject(Router);
 
-  onFileChange(event: any) {
-    this.selectedFile = event.target.files[0];
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
+
+  ngOnInit(): void {
+    // Support navigation avec un fichier passé en state (ex: depuis une autre page)
+    const file: File | undefined =
+      this.router.getCurrentNavigation()?.extras?.state?.['file'];
+    if (file) {
+      this.selectedFile = file;
+      this.analyze(file);
+    }
   }
 
-  analyze() {
-    if (!this.selectedFile) return;
-    this.isLoading = true;
+  // ── Gestion du fichier ─────────────────────────────────────────────────────
 
-    this.diagService.predict(this.selectedFile).subscribe({
-      next: (res) => {
-        this.result = res;
-        // On récupère les scores du tableau [ [score_normal, score_pneumonie] ]
-        this.normalScore = res.raw_scores[0][0];
-        this.pneumoniaScore = res.raw_scores[0][1];
-        this.isLoading = false;
+  /** Déclenché par <input type="file"> */
+  onFileChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.selectedFile = input.files?.[0] ?? null;
+    // Réinitialise les résultats précédents si l'utilisateur choisit un nouveau fichier
+    this.response = null;
+    this.error    = null;
+  }
+
+  // ── Analyse ────────────────────────────────────────────────────────────────
+
+  analyze(file: File): void {
+    this.loading  = true;
+    this.error    = null;
+    this.response = null;
+
+    this.svc.analyze(file).subscribe({
+      next:  r  => { this.response = r; this.loading = false; },
+      error: () => {
+        this.error   = "Erreur d'analyse. Veuillez réessayer.";
+        this.loading = false;
       },
-      error: () => this.isLoading = false
     });
   }
 
-  reset() {
+  // ── Reset ──────────────────────────────────────────────────────────────────
+
+  /** Remet le composant dans son état initial (zone d'upload) */
+  reset(): void {
+    this.response     = null;
     this.selectedFile = null;
-    this.result = null;
-    this.isLoading = false;
-    this.normalScore = 0;
-    this.pneumoniaScore = 0;
+    this.error        = null;
+    this.showExplain  = false;
   }
+
+  // ── Getters (vue) ──────────────────────────────────────────────────────────
+
+  get isPneumonia():     boolean { return this.response?.prediction === 'PNEUMONIA'; }
+  get alertColor():      string  { return this.isPneumonia ? 'danger' : 'success'; }
+  get gaugePercent():    number  { return this.response?.confidence ?? 0; }
+  get heatmapSrc():      string  { return `data:image/png;base64,${this.response?.heatmap_base64}`; }
+  get confidenceLabel(): string  { return `${this.response?.confidence?.toFixed(1)} %`; }
+  get zones()                    { return this.response?.clinical?.attention_analysis?.activated_zones ?? []; }
 }
